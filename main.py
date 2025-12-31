@@ -99,7 +99,7 @@ def delete_notification(note_id: UUID, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Notification not found")
     db.delete(note)
     db.commit()
-    return {"message": "Deleted"}
+    return
 
 
 if __name__ == "__main__":
