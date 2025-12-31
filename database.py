@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
 
 # Загружаем переменные из .env
 load_dotenv()
@@ -14,13 +14,13 @@ DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 
 # Формируем URL подключения (для PostgreSQL)
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Создаем движок (Engine)
-engine = create_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL)
 
 # Создаем фабрику сессий
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+AsyncSessionLocal = async_sessionmaker(expire_on_commit=False, bind=engine)
 
 
 # Базовый класс для моделей
@@ -29,9 +29,6 @@ class Base(DeclarativeBase):
 
 
 # Функция (Dependency) для получения сессии в эндпоинтах FastAPI
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
