@@ -1,5 +1,6 @@
+from datetime import datetime
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, Response
 from sqlalchemy import select
 # from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
@@ -43,14 +44,15 @@ async def create_notification(note: NotificationCreate, db=Depends(get_db)):
 @app.get("/notifications", response_model=List[NotificationResponse])
 async def get_all_notifications(db=Depends(get_db)):
     query = select(Notification)
-    notifications = db.scalars(query).all()
+    note = await db.scalars(query)
+    notifications = note.all()
     return notifications
 
 
 @app.get("/notifications/{note_id}", response_model=NotificationResponse)
 async def get_notification(note_id: UUID, db=Depends(get_db)):
-    # note = session.get(Notification, note_id)
     get_note = select(Notification).where(Notification.id == note_id)
+    # get_note = db.get(Notification, note_id)
     result = await db.execute(get_note)
     note = result.scalar_one_or_none()
     if note is None:
@@ -93,7 +95,10 @@ async def update_notification_partial(
         raise HTTPException(status_code=404, detail="Notification not found")
 
     for key, value in update_data.items():
+        if isinstance(value, datetime) and value.tzinfo is not None:
+            value = value.replace(tzinfo=None)
         setattr(note, key, value)
+
     await db.commit()
     await db.refresh(note)
     return note
@@ -102,13 +107,14 @@ async def update_notification_partial(
 @app.delete("/notifications/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_notification(note_id: UUID, db=Depends(get_db)):
     get_note = select(Notification).where(Notification.id == note_id)
+    # get_note = db.get(Notification, note_id)
     result = await db.execute(get_note)
     note = result.scalar_one_or_none()
     if note is None:
         raise HTTPException(status_code=404, detail="Notification not found")
     await db.delete(note)
     await db.commit()
-    return
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 if __name__ == "__main__":
